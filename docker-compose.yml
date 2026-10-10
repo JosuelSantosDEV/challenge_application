@@ -1,0 +1,44 @@
+# Define os serviços (containers) que a aplicação usa em desenvolvimento.
+# Para subir:   docker compose up -d
+# Para parar:   docker compose down        (os dados são mantidos nos volumes)
+# Para zerar:   docker compose down -v     (apaga também os dados)
+services:
+  # Banco de dados principal: guarda players, levels, matches e scores.
+  postgres:
+    image: postgres:17-alpine # versão fixa evita surpresas; alpine = imagem menor
+    container_name: challenge_postgres
+    restart: unless-stopped # reinicia sozinho, a menos que você tenha parado
+    environment:
+      # ${VAR:-padrão}: usa a variável do arquivo .env se existir, senão o valor padrão.
+      POSTGRES_USER: ${POSTGRES_USER:-challenge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-challenge}
+      POSTGRES_DB: ${POSTGRES_DB:-challenge}
+    ports:
+      - "5432:5432" # porta-do-seu-PC:porta-do-container
+    volumes:
+      - postgres_data:/var/lib/postgresql/data # os dados sobrevivem a reinícios
+    healthcheck: # marca o container como "healthy" quando o banco aceita conexões
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-challenge}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis: guarda o ranking (sorted set), reconstruível a partir do Postgres.
+  redis:
+    image: redis:7-alpine
+    container_name: challenge_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data # persiste o ranking entre reinícios
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"] # responde PONG quando está saudável
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+# Volumes nomeados: o Docker gerencia onde ficam os dados no disco.
+volumes:
+  postgres_data:
+  redis_data:
