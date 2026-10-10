@@ -1,13 +1,74 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
-  output   = "../generated/prisma"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+enum StatusMatch {
+  RED
+  BLUE
+  DRAW
+}
+
+model Level {
+  id             String   @id @default(uuid()) @db.Uuid
+  level_number   Int      @unique
+  required_score Int
+  players        Player[]
+
+  @@map("levels")
+}
+
+model Player {
+  id         String    @id @default(uuid()) @db.Uuid
+  name       String    @unique
+  active     Boolean   @default(true)
+  created_at DateTime  @default(now())
+  updated_at DateTime  @updatedAt
+  deleted_at DateTime?
+
+  level_id String @db.Uuid
+  level    Level  @relation(fields: [level_id], references: [id])
+
+  score Score?
+
+  matches_as_blue Match[] @relation("blue")
+  matches_as_red  Match[] @relation("red")
+
+  @@map("players")
+}
+
+model Match {
+  id         String      @id @default(uuid()) @db.Uuid
+  winner     StatusMatch
+  red_roll   Int
+  blue_roll  Int
+  created_at DateTime    @default(now())
+
+  player_blue_id String @db.Uuid
+  player_blue    Player @relation("blue", fields: [player_blue_id], references: [id])
+
+  player_red_id String @db.Uuid
+  player_red    Player @relation("red", fields: [player_red_id], references: [id])
+
+  @@index([player_blue_id])
+  @@index([player_red_id])
+  @@map("matches")
+}
+
+model Score {
+  id           String @id @default(uuid()) @db.Uuid
+  score_value  Int    @default(0)
+  points_value Int    @default(0)
+  victories    Int    @default(0)
+  draws        Int    @default(0)
+  losses       Int    @default(0)
+
+  player_id String @unique @db.Uuid
+  player    Player @relation(fields: [player_id], references: [id])
+
+  @@map("scores")
 }
